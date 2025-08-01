@@ -1,6 +1,6 @@
 # JavaScript Code Editor 
 
- ![JavaScript Code Editor Screenshot](./images/javascripteditor.png)
+ ![JavaScript Code Editor Screenshot](./images/jscripteditor.png)
 
 ---
 
@@ -32,7 +32,7 @@ A modern, full-stack web application for writing, compiling, and running JavaScr
 
 ## 🖥️ Preview
 
-![JavaScript Code Editor UI](./images/javascripteditor.png)
+![JavaScript Code Editor UI](./images/jscripteditor.png)
 
 ---
 
