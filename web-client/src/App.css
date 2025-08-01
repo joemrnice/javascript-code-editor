@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+/* Custom styles for resizable and scrollable panels */
+.resize-x {
+  resize: horizontal;
+  overflow: auto;
+  min-width: 250px;
+  max-width: 100vw;
+}
