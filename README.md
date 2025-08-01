@@ -46,7 +46,7 @@ A modern, full-stack web application for writing, compiling, and running JavaScr
 ```bash
 # Clone the repository
 $ git clone https://github.com/joemrnice/javascript-code-editor.git
-$ cd c-code-editor
+$ cd javascript-code-editor
 
 # Install server dependencies
 $ cd server && npm install
