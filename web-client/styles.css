@@ -1,0 +1,87 @@
+/* Additional custom styles beyond Tailwind */
+
+/* Hide scrollbar for tabs but allow scrolling */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth transitions for all interactive elements */
+button, input, select {
+  transition: all 0.15s ease;
+}
+
+/* Monaco editor custom tweaks */
+.monaco-editor .overflow-guard {
+  border-radius: 0 !important;
+}
+
+/* Selection color */
+::selection {
+  background: rgba(59, 130, 246, 0.3);
+  color: white;
+}
+
+/* Focus rings */
+input:focus, select:focus, button:focus {
+  outline: none;
+  ring: 2px;
+  ring-color: rgba(59, 130, 246, 0.5);
+}
+
+/* Prevent text selection on UI chrome */
+aside, header, .tab, #tabs-bar {
+  user-select: none;
+}
+
+/* File tree indentation guides (optional visual enhancement) */
+#file-tree {
+  background-image: linear-gradient(to right, transparent 19px, rgba(255,255,255,0.03) 19px, rgba(255,255,255,0.03) 20px, transparent 20px);
+  background-size: 100% 100%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  #sidebar {
+    position: fixed;
+    z-index: 40;
+    height: 100vh;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+  }
+  
+  #sidebar-resizer {
+    display: none !important;
+  }
+}
+
+/* Animation for modal backdrop */
+@keyframes backdropFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Loading state for buttons */
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Custom caret for inputs */
+input, textarea {
+  caret-color: #3b82f6;
+}
+
+/* Better touch targets on mobile */
+@media (max-width: 640px) {
+  .tab {
+    min-width: 100px;
+  }
+  
+  button {
+    min-height: 36px;
+    min-width: 36px;
+  }
+}

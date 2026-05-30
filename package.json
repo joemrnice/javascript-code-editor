@@ -1,0 +1,18 @@
+{
+  "name": "javascript-code-editor",
+  "version": "2.0.0",
+  "description": "Modern full-stack JavaScript Code Editor with SQLite-backed file explorer",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd server && npm install",
+    "dev": "concurrently \"cd server && npm run dev\" \"cd server && npm start\"",
+    "start": "cd server && npm start",
+    "server": "cd server && npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

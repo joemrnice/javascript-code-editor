@@ -1,13 +1,336 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JavaScript Code Editor v2.0</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            editor: {
+              bg: '#0f0f0f',
+              sidebar: '#1a1a1a',
+              panel: '#141414',
+              active: '#2a2d2e',
+              hover: '#2a2d2e',
+              border: '#2d2d2d',
+              accent: '#3b82f6',
+              accentHover: '#2563eb',
+              text: '#d4d4d4',
+              muted: '#858585',
+              success: '#22c55e',
+              error: '#ef4444',
+              warning: '#f59e0b'
+            }
+          },
+          fontFamily: {
+            mono: ['"JetBrains Mono"', 'Consolas', 'Monaco', 'monospace'],
+            sans: ['"Inter"', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Monaco Editor Loader -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+  
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+    
+    /* Resizer */
+    .resizer { transition: background 0.2s; }
+    .resizer:hover, .resizer.active { background: #3b82f6; }
+    
+    /* Animations */
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .animate-slide-in { animation: slideIn 0.2s ease-out; }
+    .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+    
+    /* Context menu */
+    .context-menu { animation: slideIn 0.1s ease-out; }
+    
+    /* Tab close button visibility */
+    .tab:hover .tab-close { opacity: 1; }
+    .tab-close { opacity: 0; transition: opacity 0.15s; }
+    
+    /* Loading shimmer */
+    .shimmer {
+      background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    
+    /* Monaco overrides */
+    .monaco-editor { padding-top: 8px; }
+  </style>
+  
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-editor-bg text-editor-text font-sans antialiased overflow-hidden h-screen w-screen selection:bg-editor-accent selection:text-white">
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Command Palette Modal -->
+  <div id="command-palette" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center pt-[20vh] animate-fade-in">
+    <div class="w-full max-w-2xl bg-editor-panel border border-editor-border rounded-xl shadow-2xl overflow-hidden">
+      <div class="flex items-center px-4 py-3 border-b border-editor-border">
+        <svg class="w-5 h-5 text-editor-muted mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        <input type="text" id="cmd-input" placeholder="Type a command or search files..." 
+               class="flex-1 bg-transparent text-white placeholder-editor-muted outline-none text-sm" autocomplete="off">
+        <kbd class="hidden sm:inline-block px-2 py-0.5 text-xs bg-editor-sidebar border border-editor-border rounded text-editor-muted">ESC</kbd>
+      </div>
+      <div id="cmd-results" class="max-h-[50vh] overflow-y-auto py-2"></div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center animate-fade-in">
+    <div class="w-full max-w-lg bg-editor-panel border border-editor-border rounded-xl shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-editor-border">
+        <h2 class="text-lg font-semibold text-white">Settings</h2>
+        <button onclick="app.closeSettings()" class="text-editor-muted hover:text-white transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div class="p-6 space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm font-medium text-white">Theme</div>
+            <div class="text-xs text-editor-muted mt-0.5">Editor color scheme</div>
+          </div>
+          <select id="setting-theme" onchange="app.updateSetting('theme', this.value)" 
+                  class="bg-editor-sidebar border border-editor-border rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-editor-accent">
+            <option value="vs-dark">Dark</option>
+            <option value="vs">Light</option>
+            <option value="hc-black">High Contrast</option>
+          </select>
+        </div>
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm font-medium text-white">Font Size</div>
+            <div class="text-xs text-editor-muted mt-0.5">Editor font size in pixels</div>
+          </div>
+          <input type="number" id="setting-fontSize" min="8" max="32" value="14" 
+                 onchange="app.updateSetting('fontSize', parseInt(this.value))"
+                 class="bg-editor-sidebar border border-editor-border rounded-lg px-3 py-1.5 text-sm text-white w-20 outline-none focus:border-editor-accent">
+        </div>
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm font-medium text-white">Word Wrap</div>
+            <div class="text-xs text-editor-muted mt-0.5">Wrap long lines</div>
+          </div>
+          <select id="setting-wordWrap" onchange="app.updateSetting('wordWrap', this.value)"
+                  class="bg-editor-sidebar border border-editor-border rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-editor-accent">
+            <option value="on">On</option>
+            <option value="off">Off</option>
+          </select>
+        </div>
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm font-medium text-white">Tab Size</div>
+            <div class="text-xs text-editor-muted mt-0.5">Spaces per tab</div>
+          </div>
+          <input type="number" id="setting-tabSize" min="2" max="8" value="2" step="2"
+                 onchange="app.updateSetting('tabSize', parseInt(this.value))"
+                 class="bg-editor-sidebar border border-editor-border rounded-lg px-3 py-1.5 text-sm text-white w-20 outline-none focus:border-editor-accent">
+        </div>
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm font-medium text-white">Minimap</div>
+            <div class="text-xs text-editor-muted mt-0.5">Show code overview</div>
+          </div>
+          <button id="setting-minimap-toggle" onclick="app.toggleSetting('minimap')"
+                  class="relative inline-flex h-6 w-11 items-center rounded-full bg-editor-accent transition-colors">
+            <span class="translate-x-6 inline-block h-4 w-4 transform rounded-full bg-white transition-transform"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New File/Folder Modal -->
+  <div id="new-item-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center animate-fade-in">
+    <div class="w-full max-w-md bg-editor-panel border border-editor-border rounded-xl shadow-2xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-editor-border">
+        <h2 id="new-item-title" class="text-lg font-semibold text-white">New File</h2>
+      </div>
+      <div class="p-6">
+        <input type="text" id="new-item-input" placeholder="Enter name..." 
+               class="w-full bg-editor-sidebar border border-editor-border rounded-lg px-4 py-2.5 text-white placeholder-editor-muted outline-none focus:border-editor-accent mb-4"
+               onkeydown="if(event.key==='Enter') app.confirmNewItem()">
+        <div class="flex justify-end gap-3">
+          <button onclick="app.closeNewItemModal()" class="px-4 py-2 rounded-lg text-sm text-editor-muted hover:text-white hover:bg-editor-sidebar transition-colors">Cancel</button>
+          <button onclick="app.confirmNewItem()" class="px-4 py-2 rounded-lg text-sm bg-editor-accent hover:bg-editor-accentHover text-white font-medium transition-colors">Create</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Layout -->
+  <div class="flex h-screen w-screen overflow-hidden">
+    
+    <!-- Left Sidebar -->
+    <aside id="sidebar" class="flex flex-col bg-editor-sidebar border-r border-editor-border transition-all duration-300" style="width: 260px; min-width: 180px; max-width: 500px;">
+      <!-- Sidebar Header -->
+      <div class="flex items-center justify-between px-4 py-3 border-b border-editor-border">
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+            <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+          </div>
+          <span class="text-sm font-semibold text-white tracking-tight">JS Editor</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <button onclick="app.showNewItemModal('file')" class="p-1.5 rounded-md text-editor-muted hover:text-white hover:bg-editor-hover transition-colors" title="New File">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          </button>
+          <button onclick="app.showNewItemModal('folder')" class="p-1.5 rounded-md text-editor-muted hover:text-white hover:bg-editor-hover transition-colors" title="New Folder">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Search Box -->
+      <div class="px-3 py-2">
+        <div class="relative">
+          <svg class="absolute left-2.5 top-2 w-3.5 h-3.5 text-editor-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          <input type="text" id="sidebar-search" placeholder="Search files..." 
+                 class="w-full bg-editor-bg border border-editor-border rounded-md pl-8 pr-3 py-1.5 text-xs text-white placeholder-editor-muted outline-none focus:border-editor-accent transition-colors"
+                 oninput="app.searchFiles(this.value)">
+        </div>
+      </div>
+      
+      <!-- File Tree -->
+      <div id="file-tree" class="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-4 select-none">
+        <!-- Dynamically populated -->
+      </div>
+      
+      <!-- Sidebar Footer -->
+      <div class="px-4 py-2 border-t border-editor-border text-xs text-editor-muted flex items-center justify-between">
+        <span id="file-count">0 files</span>
+        <button onclick="app.collapseAllFolders()" class="hover:text-white transition-colors">Collapse All</button>
+      </div>
+    </aside>
+
+    <!-- Sidebar Resizer -->
+    <div id="sidebar-resizer" class="resizer w-1 cursor-col-resize bg-editor-border hover:bg-editor-accent active:bg-editor-accent relative z-10"></div>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col min-w-0 bg-editor-bg">
+      
+      <!-- Top Bar -->
+      <header class="flex items-center justify-between px-4 py-2 bg-editor-panel border-b border-editor-border">
+        <div class="flex items-center gap-3 flex-1 min-w-0">
+          <button onclick="app.toggleSidebar()" class="p-1.5 rounded-md text-editor-muted hover:text-white hover:bg-editor-hover transition-colors lg:hidden">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+          </button>
+          
+          <!-- Breadcrumbs -->
+          <div id="breadcrumbs" class="flex items-center gap-1.5 text-xs text-editor-muted truncate">
+            <span class="text-white font-medium">Project</span>
+          </div>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <button onclick="app.showCommandPalette()" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md bg-editor-sidebar border border-editor-border text-xs text-editor-muted hover:text-white hover:border-editor-muted transition-all">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <span>Command Palette</span>
+            <kbd class="px-1.5 py-0.5 bg-editor-bg rounded text-[10px] border border-editor-border">Ctrl+P</kbd>
+          </button>
+          
+          <button onclick="app.runCode()" id="run-btn" class="flex items-center gap-2 px-4 py-1.5 rounded-md bg-editor-accent hover:bg-editor-accentHover text-white text-sm font-medium transition-all active:scale-95 shadow-lg shadow-blue-500/20">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <span class="hidden sm:inline">Run</span>
+            <kbd class="hidden md:inline-block px-1.5 py-0.5 bg-blue-600 rounded text-[10px]">Ctrl+Enter</kbd>
+          </button>
+          
+          <button onclick="app.saveActiveFile()" class="p-2 rounded-md text-editor-muted hover:text-white hover:bg-editor-hover transition-colors" title="Save (Ctrl+S)">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+          </button>
+          
+          <button onclick="app.toggleSettings()" class="p-2 rounded-md text-editor-muted hover:text-white hover:bg-editor-hover transition-colors" title="Settings">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Tabs Bar -->
+      <div id="tabs-bar" class="flex items-center bg-editor-bg border-b border-editor-border overflow-x-auto scrollbar-hide">
+        <!-- Dynamically populated -->
+      </div>
+
+      <!-- Editor Container -->
+      <div id="editor-container" class="flex-1 relative min-h-0">
+        <div id="monaco-editor" class="w-full h-full"></div>
+        <div id="empty-state" class="absolute inset-0 flex items-center justify-center bg-editor-bg">
+          <div class="text-center">
+            <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-editor-sidebar border border-editor-border flex items-center justify-center">
+              <svg class="w-8 h-8 text-editor-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+            </div>
+            <p class="text-editor-muted text-sm">Open a file from the explorer to start editing</p>
+            <p class="text-editor-muted/60 text-xs mt-1">or press Ctrl+P to open Command Palette</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Panel Resizer -->
+      <div id="bottom-resizer" class="resizer h-1 cursor-row-resize bg-editor-border hover:bg-editor-accent active:bg-editor-accent relative z-10"></div>
+
+      <!-- Bottom Panel -->
+      <div id="bottom-panel" class="bg-editor-panel border-t border-editor-border flex flex-col transition-all duration-300" style="height: 200px; min-height: 100px; max-height: 70vh;">
+        <!-- Panel Tabs -->
+        <div class="flex items-center bg-editor-bg border-b border-editor-border px-2">
+          <button onclick="app.switchBottomTab('console')" id="tab-console" class="px-4 py-2 text-xs font-medium text-white border-b-2 border-editor-accent bg-editor-panel/50 transition-colors">Console</button>
+          <button onclick="app.switchBottomTab('problems')" id="tab-problems" class="px-4 py-2 text-xs font-medium text-editor-muted hover:text-white border-b-2 border-transparent transition-colors">Problems</button>
+          <div class="flex-1"></div>
+          <div class="flex items-center gap-1 pr-2">
+            <button onclick="app.clearConsole()" class="p-1.5 rounded text-editor-muted hover:text-white hover:bg-editor-hover transition-colors" title="Clear">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+            <button onclick="app.toggleBottomPanel()" class="p-1.5 rounded text-editor-muted hover:text-white hover:bg-editor-hover transition-colors" title="Toggle Panel">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Panel Content -->
+        <div class="flex-1 overflow-auto p-3 font-mono text-xs">
+          <div id="console-content" class="space-y-1">
+            <div class="text-editor-muted italic">Ready to execute. Press Ctrl+Enter to run code.</div>
+          </div>
+          <div id="problems-content" class="hidden space-y-1">
+            <div class="text-editor-muted italic">No problems detected.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context Menu -->
+  <div id="context-menu" class="hidden fixed z-[60] bg-editor-panel border border-editor-border rounded-lg shadow-xl py-1 min-w-[160px] context-menu">
+    <!-- Dynamically populated -->
+  </div>
+
+  <script src="app.js"></script>
+</body>
 </html>
